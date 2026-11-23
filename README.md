@@ -1,68 +1,52 @@
 # SpanForge 🌉
 
-**SpanForge** is an educational prototype for comparing the material usage of simple bamboo and timber emergency-bridge **truss concepts** using a custom 2D finite-element solver.
+**SpanForge** is an interactive emergency-bridge concept explorer, built entirely with **HTML, CSS, and JavaScript** and hosted directly on **GitHub Pages**.
 
-> **Not for construction.** The tool is not a validated structural design program, does not certify safety, and cannot generate a buildable bridge. Consult qualified structural engineers and relevant standards for any physical application.
+**Live website:** https://notivanly.github.io/SpanForge/
 
 ## Features
 
-- Interactive span, vertical load, geometry, and illustrative material controls
-- Custom direct-stiffness finite-element solver for **2D pin-jointed trusses**
+- Responsive engineering dashboard
+- Adjustable span, height, point-load equivalent, panel count, and example materials
+- Custom browser-based **2D finite-element truss solver** (direct stiffness method)
 - Pratt and Howe truss comparisons
-- Displacement, axial force, and elastic axial-stress calculations
-- Discrete uniform-member-area screening for simplified stress and deflection thresholds
-- Visualization of calculated displacement (exaggerated for readability)
-- Unit tests against a hand-checkable single-bar analytical result and global force equilibrium
+- Calculated axial stresses, joint displacements, support reactions and approximate truss member mass
+- Discrete uniform-member-area screening
+- Interactive SVG bridge diagram with exaggerated deformation
+- No build tools, external services, or package installation needed
 
 ## Tech stack
 
-- **Python** — finite-element calculations and candidate screening
-- **NumPy** — linear algebra and numerical arrays
-- **Streamlit** — interactive web interface
-- **Matplotlib** — bridge visualizations
-- **pytest** — solver tests
+- **HTML5** — dashboard structure
+- **CSS3** — dark responsive interface
+- **JavaScript (ES6)** — custom finite-element solver, linear algebra, SVG visualization and controls
 
-## Run locally
+## Running locally
 
-Requires Python 3.10+.
+Open `index.html` in a browser. No installation is required.
 
-```bash
-python -m venv .venv
-# macOS/Linux: source .venv/bin/activate
-# Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-streamlit run app.py
-```
+## GitHub Pages
 
-## Test
+In repository **Settings → Pages**, choose **Deploy from a branch**, **main**, **/(root)**. The home page is `index.html`. GitHub publishes the site at:
 
-```bash
-python -m pytest -q
-```
+https://notivanly.github.io/SpanForge/
 
-## Model assumptions and limitations
+## The solver
 
-- Small-displacement, linear-elastic **2D truss** behavior; axial forces only
-- Members are idealized as perfectly pin connected
-- One pinned support and one roller support
-- Total vertical load split equally among interior bottom nodes
-- All members use the same area; only two topology families are compared
-- Example material properties and permissible stress limits are illustrative and **not** established design values
-- Simplified displacement threshold = span / 300 (illustrative only)
-- No buckling, joint design, lateral stability, bracing, footing capacity, live-load dynamics, flood or wind actions, durability, partial safety factors, or building-code compliance
+`solver.js` computes the global stiffness matrix for an idealized 2D pin-jointed truss and solves the free-degree-of-freedom system using partial-pivot Gaussian elimination. It then computes each member's axial force, stress and estimated mass. The app explores two truss topologies with a discrete range of uniform member cross sections.
 
-Therefore an on-screen screening result **must not** be described as a safe bridge design.
+**Modeling assumptions:** linear elasticity, small displacement, 2D truss elements, perfectly pinned connections, a pinned and roller support, and loads divided among interior bottom joints. The example material properties and stress limits are *illustrative*, not verified allowable material properties. The span/300 movement threshold is an example screening choice only.
 
-## How it works
+## IMPORTANT SAFETY LIMITATION
 
-For each truss member, axial element stiffness scales with `E*A/L`. The solver assembles the transformed global stiffness matrix `K`, solves `K*u = F` for free displacements, and computes axial member forces and reactions. Candidate topology and area combinations are filtered using the **simplified** stress and displacement checks; the surviving lowest-mass candidate is shown.
+**SpanForge is an educational demonstration, not a certified structural design, construction plan or safety analysis. Never build or load a bridge based on these results.** It does not assess member buckling, joint failure, lateral stability, foundations, environmental loads, dynamic loads, construction details, material variability, or required load and resistance factors. Physical bridge projects require verified materials, applicable standards, and a qualified structural engineer.
 
-## Suggested future work
+## Project files
 
-1. Add compressive member buckling and connection failure checks.
-2. Add verified property databases with uncertainty and code-based load combinations.
-3. Add more structure families and true size/topology optimization.
-4. Validate numerical results against published benchmark models, then independent engineering review.
+- `index.html` — app page
+- `style.css` — styling
+- `solver.js` — mathematical analysis
+- `app.js` — interface and interactive SVG rendering
 
 ## License
 
