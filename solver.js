@@ -30,12 +30,30 @@
     return x;
   }
 
-  const topologies=Object.freeze(["Pratt","Howe","Warren","Warren with verticals","X-braced","K-braced","Parker","Camelback-inspired","Bowstring-inspired","Fan"]);
+  // The ten original models plus six chord profiles crossed with six web patterns.
+  // These are parameterized educational variants, not 46 historical bridge families.
+  const originals=["Pratt","Howe","Warren","Warren with verticals","X-braced","K-braced","Parker","Camelback-inspired","Bowstring-inspired","Fan"];
+  const profiles=Object.freeze({
+    "Triangular":t=>0.35+0.65*(1-Math.abs(2*t-1)),
+    "Trapezoidal":t=>0.35+0.65*Math.min(1,4*Math.min(t,1-t)),
+    "Sinusoidal":t=>0.35+0.65*Math.sin(Math.PI*t),
+    "Inverted polygonal":t=>0.45+0.55*Math.pow(2*t-1,2),
+    "Rising chord":t=>0.4+0.6*t,
+    "Double-hump":t=>0.45+0.55*Math.abs(Math.sin(2*Math.PI*t))
+  });
+  const webPatterns=["Pratt","Howe","Alternating","X-braced","K-braced","N-braced"];
+  const variants=Object.freeze(Object.keys(profiles).flatMap(profile=>
+    webPatterns.map(web=>Object.freeze({name:profile+" / "+web,profile,web}))));
+  const topologies=Object.freeze([...originals,...variants.map(v=>v.name)]);
+  const variantByName=new Map(variants.map(v=>[v.name,v]));
+
 
   function geometry(span, panels, height, topology) {
     if(!(span>0 && height>0 && Number.isInteger(panels) && panels>=2))
       throw Error("Invalid geometry");
     if(!topologies.includes(topology)) throw Error("Unknown topology");
+    const variant=variantByName.get(topology);
+    const web=variant?.web||topology;
     const nodes=[], members=[];
     const add=(a,b)=>members.push([a,b]);
     for(let i=0;i<=panels;i++) nodes.push([i*span/panels,0]);
@@ -77,10 +95,11 @@
           // Five upper-chord regions: steep, shallow, level, shallow, steep.
           y=height*(s<=0.2?0.4+2*s:s<=0.4?0.8+(s-0.2):1);
         }
+        if(variant) y=height*profiles[variant.profile](t);
         nodes.push([t*span,y]);
       }
       for(let i=0;i<panels;i++) add(top+i,top+i+1);
-      if(topology==="K-braced"){
+      if(web==="K-braced"){
         for(let i=0;i<panels;i++){
           const mid=nodes.length;
           nodes.push([nodes[i][0],nodes[top+i][1]/2]);
@@ -91,9 +110,10 @@
       } else {
         for(let i=0;i<=panels;i++) add(i,top+i);
         for(let i=0;i<panels;i++){
-          if(topology==="Howe") add(...howe(i));
-          else if(topology==="Warren with verticals") add(...(i%2===0?[i,top+i+1]:[top+i,i+1]));
-          else if(topology==="X-braced"){add(i,top+i+1);add(top+i,i+1);}
+          if(web==="Howe") add(...howe(i));
+          else if(web==="Warren with verticals"||web==="Alternating") add(...(i%2===0?[i,top+i+1]:[top+i,i+1]));
+          else if(web==="X-braced"){add(i,top+i+1);add(top+i,i+1);}
+          else if(web==="N-braced") add(i,top+i+1);
           else add(...pratt(i));
         }
       }
@@ -170,5 +190,5 @@
       (a.error?1:0)-(b.error?1:0)||(a.mass??Infinity)-(b.mass??Infinity));
   }
 
-  global.SpanForgeSolver={materials,topologies,geometry,analyze,evaluate,screen};
+  global.SpanForgeSolver={materials,topologies,variants,geometry,analyze,evaluate,screen};
 })(window);
