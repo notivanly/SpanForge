@@ -81,18 +81,33 @@ function recalc(){
     $("candidate-rows").innerHTML=candidates.map(c=>{
       const status=c.error?"Unavailable":c.passes?"Pass":"Exceeds";
       const values=c.error?["—","—","—","—"]:[fmt(c.area*10000,1)+" cm²",fmt(c.mass,1)+" kg",fmt(c.stressRatio*100,1)+"%",fmt(c.movementRatio*100,1)+"%"];
-      return "<tr><td>"+c.topology+"</td>"+values.map(v=>"<td>"+v+"</td>").join("")+"<td>"+status+"</td></tr>";
+      return "<tr><td><button type=\"button\" class=\"inspect-design\" data-design=\""+c.topology+"\">"+c.topology+"</button></td>"+values.map(v=>"<td>"+v+"</td>").join("")+"<td>"+status+"</td></tr>";
     }).join("");
     const count=candidates.filter(c=>c.passes).length;
     $("message").textContent=count+" of "+candidates.length+" models meet the simplified thresholds. Passing models are ranked by idealized member mass; other models follow. Not construction approval.";
   }catch(err){clearResult("Calculation error: "+err.message);}
 }
+const variantNames=new Set(SpanForgeSolver.variants.map(v=>v.name));
+const groups=new Map();
 for(const topology of SpanForgeSolver.topologies){
+  const family=variantNames.has(topology)?topology.split(" / ")[0]:"Original configurations";
+  if(!groups.has(family)){
+    const group=document.createElement("optgroup");
+    group.label=family;
+    $("design-select").append(group);
+    groups.set(family,group);
+  }
   const option=document.createElement("option");
   option.value=topology;
   option.textContent=topology;
-  $("design-select").append(option);
+  groups.get(family).append(option);
 }
+$("candidate-rows").addEventListener("click",event=>{
+  const button=event.target.closest("button[data-design]");
+  if(!button)return;
+  $("design-select").value=button.dataset.design;
+  drawSelected();
+});
 $("design-select").addEventListener("change",drawSelected);
 for(const id of ids) $(id).addEventListener("input",recalc);
 $("reset").addEventListener("click",()=>{for(const [id,value] of Object.entries(defaults)) $(id).value=value;$("design-select").value="auto";recalc();});
