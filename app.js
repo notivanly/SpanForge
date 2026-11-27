@@ -27,12 +27,11 @@ function svgDrawing(r){
     const [x,y]=project(...coords[i]);
     markup+='<circle cx="'+x.toFixed(2)+'" cy="'+y.toFixed(2)+'" r="3.8" fill="#c5d8e2"/>';
   }
-  const panels=(coords.length/2)-1;
-  for(let i=1;i<panels;i++){
+  for(const i of r.loadNodes){
     const [x,y]=project(...coords[i]);
     markup+='<circle cx="'+x.toFixed(2)+'" cy="'+y.toFixed(2)+'" r="5" fill="#ffcf8a"/>';
   }
-  for(const i of [0,panels]){
+  for(const i of r.supportNodes){
     const [x,y]=project(...coords[i]);
     markup+='<path d="M '+(x-11).toFixed(2)+' '+(y+16).toFixed(2)+' L '+x.toFixed(2)+' '+(y+2).toFixed(2)+' L '+(x+11).toFixed(2)+' '+(y+16).toFixed(2)+' Z" fill="none" stroke="#d3e5ee" stroke-width="2"/>';
   }
@@ -47,6 +46,26 @@ function clearResult(msg){
   $("candidate-rows").replaceChildren();
   $("message").textContent=msg;
 }
+let latestCandidates=[];
+function drawSelected(){
+  const requested=$("design-select").value;
+  const r=requested==="auto"?(latestCandidates.find(c=>c.passes)||latestCandidates.find(c=>!c.error)):latestCandidates.find(c=>c.topology===requested);
+  if(!r||r.error){
+    $("status").textContent="MODEL UNAVAILABLE";
+    $("status").style.color="#ffd59c";
+    $("topology").textContent=r?r.topology.toUpperCase():"—";
+    $("mass").textContent=$("stress").textContent=$("deflection").textContent="—";
+    $("bridge-plot").textContent=r?.error||"No model available.";
+    return;
+  }
+  $("status").textContent=r.passes?"PASSES MODEL SCREEN":"EXCEEDS MODEL LIMIT";
+  $("status").style.color=r.passes?"#8ce9b9":"#ffd59c";
+  $("topology").textContent=r.topology.toUpperCase()+" TRUSS";
+  $("mass").textContent=fmt(r.mass,1);
+  $("stress").textContent=fmt(r.maxStress/1e6,2);
+  $("deflection").textContent=fmt(r.maxDisplacement*1000,2);
+  $("bridge-plot").innerHTML=svgDrawing(r);
+}
 function recalc(){
   $("span-val").textContent=Number($("span").value).toFixed(1)+" m";
   $("load-val").textContent=$("load").value+" kN";
@@ -57,24 +76,24 @@ function recalc(){
     const panels=Number($("panels").value),height=Number($("height").value);
     const material=SpanForgeSolver.materials[$("material").value];
     const candidates=SpanForgeSolver.screen(span,load,panels,height,material);
-    if(!candidates.length){
-      clearResult("No candidate meets both simplified thresholds within the tested area range. Try another span, height or load.");
-      return;
-    }
-    const r=candidates[0];
-    $("status").textContent="MODEL SOLVED";
-    $("status").style.color="#8ce9b9";
-    $("topology").textContent=r.topology.toUpperCase()+" TRUSS";
-    $("mass").textContent=fmt(r.mass,1);
-    $("stress").textContent=fmt(r.maxStress/1e6,2);
-    $("deflection").textContent=fmt(r.maxDisplacement*1000,2);
-    $("bridge-plot").innerHTML=svgDrawing(r);
-    $("candidate-rows").innerHTML=candidates.map(c=>
-      "<tr><td>"+c.topology+"</td><td>"+fmt(c.area*10000,1)+" cm²</td><td>"+fmt(c.mass,1)+" kg</td><td>"+fmt(c.stressRatio*100,1)+"%</td><td>"+fmt(c.movementRatio*100,1)+"%</td></tr>"
-    ).join("");
-    $("message").textContent="These are idealized axial-stress and displacement screens, not comprehensive safety checks or construction approval.";
+    latestCandidates=candidates;
+    drawSelected();
+    $("candidate-rows").innerHTML=candidates.map(c=>{
+      const status=c.error?"Unavailable":c.passes?"Pass":"Exceeds";
+      const values=c.error?["—","—","—","—"]:[fmt(c.area*10000,1)+" cm²",fmt(c.mass,1)+" kg",fmt(c.stressRatio*100,1)+"%",fmt(c.movementRatio*100,1)+"%"];
+      return "<tr><td>"+c.topology+"</td>"+values.map(v=>"<td>"+v+"</td>").join("")+"<td>"+status+"</td></tr>";
+    }).join("");
+    const count=candidates.filter(c=>c.passes).length;
+    $("message").textContent=count+" of "+candidates.length+" models meet the simplified thresholds. Passing models are ranked by idealized member mass; other models follow. Not construction approval.";
   }catch(err){clearResult("Calculation error: "+err.message);}
 }
+for(const topology of SpanForgeSolver.topologies){
+  const option=document.createElement("option");
+  option.value=topology;
+  option.textContent=topology;
+  $("design-select").append(option);
+}
+$("design-select").addEventListener("change",drawSelected);
 for(const id of ids) $(id).addEventListener("input",recalc);
-$("reset").addEventListener("click",()=>{for(const [id,value] of Object.entries(defaults)) $(id).value=value;recalc();});
+$("reset").addEventListener("click",()=>{for(const [id,value] of Object.entries(defaults)) $(id).value=value;$("design-select").value="auto";recalc();});
 recalc();
